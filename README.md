@@ -1,2 +1,2 @@
-# juno-66-editor
-Controller and editor for Juno-66.
+# Juno-66 Editor
+A browser based MIDI controller and editor for Juno-66.
