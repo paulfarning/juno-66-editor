@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Juno 66 Controller</title>
+</head>
+<body>
+  <h1>Juno 66</h1>
+
+  <label for="channel-select">Channel</label>
+  <input id="channel-select" name="channel-select" type="range" value="0" min="0" max="16">
+
+  <fieldset>
+    <legend>Filter</legend>
+
+    <label for="filter-cutoff">Filter cut-off</label>
+    <input class="continuous" id="filter-cutoff" name="filter-cutoff" type="range" value="0" min="0" max="127" data-cc="17">
+
+    <label for="filter-attack">Filter attack</label>
+    <input class="continuous" id="filter-attack" name="filter-attack" type="range" value="0" min="0" max="127" data-cc="30">
+
+    <label for="filter-decay">Filter decay</label>
+    <input class="continuous" id="filter-decay" name="filter-decay" type="range" value="0" min="0" max="127" data-cc="31">
+
+    <label for="filter-sustain">Filter sustain</label>
+    <input class="continuous" id="filter-sustain" name="filter-sustain" type="range" value="0" min="0" max="127" data-cc="32">
+
+    <label for="filter-release">Filter release</label>
+    <input class="continuous" id="filter-release" name="filter-release" type="range" value="0" min="0" max="127" data-cc="33">
+
+    <label for="filter-amount">Filter amount</label>
+    <input class="continuous" id="filter-amount" name="filter-amount" type="range" value="0" min="0" max="127" data-cc="34">
+  </fieldset>
+
+  <fieldset>
+    <legend>Triangular LFO</legend>
+
+    <label for="triangular-lfo-coarse">Triangular LFO coarse</label>
+    <input class="continuous" id="triangular-lfo-coarse" name="triangular-lfo-coarse" type="range" value="0" min="0" max="127" data-cc="23">
+
+    <label for="triangular-lfo-fine">Triangular LFO fine</label>
+    <input class="continuous" id="triangular-lfo-fine" name="triangular-lfo-fine" type="range" value="0" min="0" max="127" data-cc="24">
+
+    <label for="triangular-lfo-amount">Triangular LFO amount</label>
+    <input class="continuous" id="triangular-lfo-amount" name="triangular-lfo-amount" type="range" value="0" min="0" max="127" data-cc="25">
+  </fieldset>
+
+  <fieldset>
+    <legend>Detune</legend>
+
+    <label for="detune">Detune</label>
+    <input class="continuous" id="detune" name="detune" type="range" value="0" min="0" max="127" data-cc="26">
+
+    <label for="fatness">Fatness</label>
+    <input class="continuous" id="fatness" name="fatness" type="range" value="0" min="0" max="127" data-cc="27">
+  </fieldset>
+
+  <fieldset>
+    <legend>Portamento</legend>
+
+    <label for="fast">Fast</label>
+    <input class="continuous" id="fast" name="fast" type="range" value="0" min="0" max="127" data-cc="28">
+
+    <label for="slow">Slow</label>
+    <input class="continuous" id="slow" name="slow" type="range" value="0" min="0" max="127" data-cc="29">
+  </fieldset>
+
+
+
+<script>
+
+
+
+var forEach = function (array, callback, scope) {
+  for (var i = 0; i < array.length; i++) {
+    callback.call(scope, i, array[i]); // passes back stuff we need
+  }
+};
+
+
+// https://www.nyu.edu/classes/bello/FMT_files/9_MIDI_code.pdf
+// https://www.cs.cf.ac.uk/Dave/Multimedia/node158.html
+//
+// Voice Message           Status Byte      Data Byte1          Data Byte2
+// -------------           -----------   -----------------   -----------------
+// Note off                      8x      Key number          Note Off velocity
+// Note on                       9x      Key number          Note on velocity
+// Polyphonic Key Pressure       Ax      Key number          Amount of pressure
+// Control Change                Bx      Controller number   Controller value
+// Program Change                Cx      Program number      None
+// Channel Pressure              Dx      Pressure value      None
+// Pitch Bend                    Ex      MSB                 LSB
+
+// request MIDI access
+if (navigator.requestMIDIAccess) {
+    navigator.requestMIDIAccess({
+        sysex: false // this defaults to 'false' and we won't be covering sysex in this article.
+    }).then(onMIDISuccess, onMIDIFailure);
+} else {
+    alert("No MIDI support in your browser.");
+}
+
+var ports = [];
+var out;
+var controls = document.querySelectorAll('.continuous');
+
+forEach(controls, bindControls);
+
+function bindControls(index, element) {
+  element.addEventListener('input', sendValue);
+}
+
+
+// midi functions
+function onMIDISuccess(midiAccess) {
+    // when we get a succesful response, run this code
+    console.log('MIDI Access Object', midiAccess);
+
+    midiAccess.onstatechange = function(e) {
+      onMIDIAccessChange(e);
+    }
+
+    out = midiAccess.outputs.values().next().value;
+
+    // var outputs = midiAccess.outputs;
+    // if (outputs.size > 0) {
+    //   outputs.forEach(
+    //     function(port, key) {
+    //       port.onstatechange = function(e) { onPortStateChange(e); };
+    //       ports.push(port);
+    //     }
+    //   );
+    // }
+
+    // console.log(ports);
+
+  // var iteratorOutputs = midiAccess.outputs.values() // returns an iterator that loops over all outputs
+  // var output = iteratorOutputs.next().value; // grab first output device
+
+  // console.log(midiAccess.outputs.values(), midiAccess.outputs.values().next().value);
+
+    // midiOut.send([status, ccNum, val]);
+    out.send([176, 54, 30]);
+
+}
+
+function sendValue(e) {
+
+  var target = e.target;
+  var value = target.value;
+  var cc = target.dataset.cc;
+  var channel = '0xB' + document.getElementById('channel-select').value;
+
+  console.log('send:', channel, cc, value);
+
+  out.send([channel, cc, value]);
+}
+
+function onMIDIFailure(e) {
+    // when we get a failed response, run this code
+    console.log("No access to MIDI devices or your browser doesn't support WebMIDI API. Please use WebMIDIAPIShim " + e);
+}
+
+function onPortStateChange(e) {
+  console.log('port change', e);
+}
+
+function onMIDIAccessChange(e) {
+  console.log('access change', e);
+}
+
+</script>
+</body>
+</html>
